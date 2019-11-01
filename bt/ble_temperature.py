@@ -17,7 +17,8 @@ _IRQ_CENTRAL_DISCONNECT              = const(1 << 1)
 _ENV_SENSE_UUID = bluetooth.UUID(0x181A)
 # org.bluetooth.characteristic.temperature
 _TEMP_CHAR = (bluetooth.UUID(0x2A6E), bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,)
-_ENV_SENSE_SERVICE = (_ENV_SENSE_UUID, (_TEMP_CHAR,),)
+_TEMP_CHAR2 = (bluetooth.UUID(0x2A6E), bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,)
+_ENV_SENSE_SERVICE = (_ENV_SENSE_UUID, (_TEMP_CHAR, _TEMP_CHAR2,),)
 
 # org.bluetooth.characteristic.gap.appearance.xml
 _ADV_APPEARANCE_GENERIC_THERMOMETER = const(768)
@@ -27,7 +28,7 @@ class BLETemperature:
         self._ble = ble
         self._ble.active(True)
         self._ble.irq(handler=self._irq)
-        ((self._handle,),) = self._ble.gatts_register_services((_ENV_SENSE_SERVICE,))
+        ((self._handle1, self._handle2),) = self._ble.gatts_register_services((_ENV_SENSE_SERVICE,))
         self._connections = set()
         self._payload = advertising_payload(name=name, services=[_ENV_SENSE_UUID], appearance=_ADV_APPEARANCE_GENERIC_THERMOMETER)
         self._advertise()
@@ -43,14 +44,16 @@ class BLETemperature:
             # Start advertising again to allow a new connection.
             self._advertise()
 
-    def set_temperature(self, temp_deg_c, notify=False):
+    def set_temperature(self, temp_deg_c, temp_deg_c2, notify=False):
         # Data is sint16 in degrees Celsius with a resolution of 0.01 degrees Celsius.
         # Write the local value, ready for a central to read.
-        self._ble.gatts_write(self._handle, struct.pack('<h', int(temp_deg_c * 100)))
+        self._ble.gatts_write(self._handle1, struct.pack('<h', int(temp_deg_c * 100)))
+        self._ble.gatts_write(self._handle2, struct.pack('<h', int(temp_deg_c2 * 100)))
         if notify:
             for conn_handle in self._connections:
                 # Notify connected centrals to issue a read.
-                self._ble.gatts_notify(conn_handle, self._handle)
+                self._ble.gatts_notify(conn_handle, self._handle1)
+                self._ble.gatts_notify(conn_handle, self._handle2)
 
     def _advertise(self, interval_us=500000):
         self._ble.gap_advertise(interval_us, adv_data=self._payload)
@@ -66,7 +69,7 @@ def demo():
     while True:
         # Write every second, notify every 10 seconds.
         i = (i + 1) % 10
-        temp.set_temperature(t, notify=i == 0)
+        temp.set_temperature(t, t/2, notify=i == 0)
         # Random walk the temperature.
         t += random.uniform(-0.5, 0.5)
         time.sleep_ms(1000)
