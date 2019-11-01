@@ -9,7 +9,7 @@ ds18_pin = 4
 
 def setup(pins=display_pins, val=8888):
 	displays = []
-	for clk, dio in pinss:
+	for clk, dio in pins:
 		print(clk, dio)
 		tm = tm1637.TM1637(clk=Pin(clk), dio=Pin(dio))
 		tm.number(val)
@@ -26,15 +26,14 @@ def show(i, displays, value):
 
 def sensor_info(rom):
 	raw = rom
-	litte_int = uniq = int.from_bytes(rom, byteorder='little')
-	big_int = uniq = int.from_bytes(rom, byteorder='big')
-	return (raw, little_int, big_int)
+	little_int = uniq = int.from_bytes(rom, 'little')
+	big_int = uniq = int.from_bytes(rom, 'big')
+	return str(raw) + "\t" + str(little_int) + "\t" + str(big_int)
 
 def show_sensors(roms):
 	print("\t".join(["raw", "little", "big"]))
-	for i, rom in enumerate(sorted(roms)):
-		print("\t".join(sensor_info(rom)))
-
+	for i, rom in enumerate(roms):
+		print(sensor_info(rom))
 
 def run():
 	ds_pin = Pin(ds18_pin)
@@ -42,15 +41,14 @@ def run():
 
 	roms = ds_sensor.scan()
 	print('Found DS devices: ', roms)
-	sorted_roms = sorted(roms)
-	show_sensors(sorted_roms)
+	show_sensors(roms)
 	
 	displays = setup()
 
 	while True:
 		ds_sensor.convert_temp()
 		time.sleep_ms(750)
-		for i, rom in enumerate(sorted_roms):
+		for i, rom in enumerate(roms):
 			value = ds_sensor.read_temp(rom)
 			print(rom)
 			print(value)
