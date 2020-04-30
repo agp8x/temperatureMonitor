@@ -5,7 +5,7 @@ from machine import Pin
 import tm1637
 import sensors
 
-display_pins = [(14,27), (26,25), (33,32), (23,22), (19,21)] # (clk, dio)
+display_pins = [(26,25), (14,27), (33,32), (23,22), (19,21)] # (clk, dio)
 
 def setup(pins=display_pins, val=8888):
 	displays = []

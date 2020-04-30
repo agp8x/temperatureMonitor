@@ -15,13 +15,17 @@ _IRQ_CENTRAL_DISCONNECT              = const(1 << 1)
 
 # org.bluetooth.service.environmental_sensing
 _ENV_SENSE_UUID = bluetooth.UUID(0x181A)
-# org.bluetooth.characteristic.temperature
-_TEMP_CHAR0 = (bluetooth.UUID(0x2A6E), bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,)
-_TEMP_CHAR1 = (bluetooth.UUID(0x2A6E), bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,)
-_TEMP_CHAR2 = (bluetooth.UUID(0x2A6E), bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,)
-_TEMP_CHAR3 = (bluetooth.UUID(0x2A6E), bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,)
-_TEMP_CHAR4 = (bluetooth.UUID(0x2A6E), bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,)
-_ENV_SENSE_SERVICE = (_ENV_SENSE_UUID, (_TEMP_CHAR0, _TEMP_CHAR1, _TEMP_CHAR2, _TEMP_CHAR3, _TEMP_CHAR4),)
+
+_UUIDS = (
+	bluetooth.UUID(0x2A6E),	# org.bluetooth.characteristic.temperature ()
+	bluetooth.UUID(0x2A3C),	# "Scientific Temperature Celsius"
+	bluetooth.UUID(0x2A1F),	# "Temperature Celsius"
+	bluetooth.UUID(0x2A1E),	# "Intermediate Temperature"
+	bluetooth.UUID(0x2A1C),	# "Temperature Measurement"
+)
+
+
+_ENV_SENSE_SERVICE = (_ENV_SENSE_UUID, [(uuid, bluetooth.FLAG_READ|bluetooth.FLAG_NOTIFY,) for uuid in _UUIDS],)
 
 # org.bluetooth.characteristic.gap.appearance.xml
 _ADV_APPEARANCE_GENERIC_THERMOMETER = const(768)
@@ -31,7 +35,7 @@ class BLETemperature:
         self._ble = ble
         self._ble.active(True)
         self._ble.irq(handler=self._irq)
-        ((self._handle0, self._handle1, self._handle2, self._handle3, self._handle4),) = self._ble.gatts_register_services((_ENV_SENSE_SERVICE,))
+        (self._handles,) = self._ble.gatts_register_services((_ENV_SENSE_SERVICE,))
         self._connections = set()
         self._payload = advertising_payload(name=name, services=[_ENV_SENSE_UUID], appearance=_ADV_APPEARANCE_GENERIC_THERMOMETER)
         self._advertise()
@@ -47,22 +51,19 @@ class BLETemperature:
             # Start advertising again to allow a new connection.
             self._advertise()
 
-    def set_temperature(self, temp_deg_c0, temp_deg_c1, temp_deg_c2, temp_deg_c3, temp_deg_c4, notify=False):
+    def set_temperature(self, temperatures, notify=False):
         # Data is sint16 in degrees Celsius with a resolution of 0.01 degrees Celsius.
         # Write the local value, ready for a central to read.
-        self._ble.gatts_write(self._handle0, struct.pack('<h', int(temp_deg_c0 * 100)))
-        self._ble.gatts_write(self._handle1, struct.pack('<h', int(temp_deg_c1 * 100)))
-        self._ble.gatts_write(self._handle2, struct.pack('<h', int(temp_deg_c2 * 100)))
-        self._ble.gatts_write(self._handle3, struct.pack('<h', int(temp_deg_c3 * 100)))
-        self._ble.gatts_write(self._handle4, struct.pack('<h', int(temp_deg_c4 * 100)))
+        if not len(list(self._handles)) == len(temperatures):
+        	print("ERROR -- uneven length of handles and temperatures", len(list(self._handles)), len(temperatures), "|", list(self._handles),":", temperatures)
+        	return
+        for i, handle in enumerate(self._handles):
+        	self._ble.gatts_write(handle, struct.pack('<h', int(temperatures[i] * 100)))
         if notify:
             for conn_handle in self._connections:
                 # Notify connected centrals to issue a read.
-                self._ble.gatts_notify(conn_handle, self._handle0)
-                self._ble.gatts_notify(conn_handle, self._handle1)
-                self._ble.gatts_notify(conn_handle, self._handle2)
-                self._ble.gatts_notify(conn_handle, self._handle3)
-                self._ble.gatts_notify(conn_handle, self._handle4)
+                for handle in self._handles:
+                	self._ble.gatts_notify(conn_handle, handle)
 
     def _advertise(self, interval_us=500000):
         self._ble.gap_advertise(interval_us, adv_data=self._payload)

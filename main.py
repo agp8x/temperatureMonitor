@@ -19,5 +19,5 @@ while True:
 		print(i, "rom:", rom, "=>", value)
 		show(i, displays, value)
 		values.append(value)
-	ble_temp.set_temperature(*values, notify=True)
+	ble_temp.set_temperature(values, notify=True)
 	time.sleep(5)
