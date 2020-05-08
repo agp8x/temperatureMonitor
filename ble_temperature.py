@@ -79,7 +79,7 @@ def demo():
     while True:
         # Write every second, notify every 10 seconds.
         i = (i + 1) % 10
-        temp.set_temperature(t, t/2, notify=i == 0)
+        temp.set_temperature([t, t/2, t*3, -21, 42], notify=i == 0)
         # Random walk the temperature.
         t += random.uniform(-0.5, 0.5)
         time.sleep_ms(1000)
