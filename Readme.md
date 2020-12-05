@@ -25,3 +25,8 @@ esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 460800 write_flash -z 0x1000 
 ampy -p /dev/ttyUSB0 put display.py display.py
 ampy -p /dev/ttyUSB0 put tm1637.py tm1637.py
 ```
+
+Companion App
+=============
+
+See https://github.com/agp8x/temperatureMonitorApp
